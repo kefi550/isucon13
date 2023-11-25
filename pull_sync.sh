@@ -20,3 +20,5 @@ mkdir -p "${LOCAL_PATH}/mysql/isu2/"
 rsync -avr --exclude='' isu2:/etc/mysql/ "${LOCAL_PATH}/mysql/isu2"
 #rsync -avr --exclude='' isu3:/etc/mysql/ "${LOCAL_PATH}/mysql/isu3"
   
+mkdir -p "${LOCAL_PATH}/pdns/isu1/"
+rsync -avr --exclude='' isu1:/etc/powerdns/ "${LOCAL_PATH}/pdns/isu1/"
