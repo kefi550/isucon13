@@ -5,6 +5,7 @@ import {
   defaultUserIDKey,
   defaultUserNameKey,
   defaultSessionExpiresKey,
+  defaultUserResponseKey
 } from '../contants'
 import { verifyUserSessionMiddleware } from '../middlewares/verify-user-session-middleare'
 import { fillUserResponse } from '../utils/fill-user-response'
@@ -86,27 +87,6 @@ export const postIconHandler = [
 
       await conn.commit().catch(throwErrorWith('failed to commit'))
 
-      return c.json({ id: iconId }, 201)
-    } catch (error) {
-      await conn.rollback()
-      return c.text(`Internal Server Error\n${error}`, 500)
-    } finally {
-      await conn.rollback()
-      conn.release()
-    }
-  },
-]
-
-// GET /api/user/me
-export const getMeHandler = [
-  verifyUserSessionMiddleware,
-  async (c: Context<HonoEnvironment, '/api/user/me'>) => {
-    const userId = c.get('session').get(defaultUserIDKey) as number // userId is verified by verifyUserSessionMiddleware
-
-    const conn = await c.get('pool').getConnection()
-    await conn.beginTransaction()
-
-    try {
       const [[user]] = await conn
         .query<(UserModel & RowDataPacket)[]>(
           'SELECT * FROM users WHERE id = ?',
@@ -124,16 +104,58 @@ export const getMeHandler = [
         user,
         c.get('runtime').fallbackUserIcon,
       ).catch(throwErrorWith('failed to fill user'))
+      const session = c.get('session')
+      session.set(defaultUserResponseKey, response)
 
-      await conn.commit().catch(throwErrorWith('failed to commit'))
-
-      return c.json(response)
+      return c.json({ id: iconId }, 201)
     } catch (error) {
       await conn.rollback()
       return c.text(`Internal Server Error\n${error}`, 500)
     } finally {
       await conn.rollback()
       conn.release()
+    }
+  },
+]
+
+// GET /api/user/me
+export const getMeHandler = [
+  verifyUserSessionMiddleware,
+  async (c: Context<HonoEnvironment, '/api/user/me'>) => {
+    const userId = c.get('session').get(defaultUserIDKey) as number // userId is verified by verifyUserSessionMiddleware
+
+    // const conn = await c.get('pool').getConnection()
+    // await conn.beginTransaction()
+
+    try {
+      // const [[user]] = await conn
+      //   .query<(UserModel & RowDataPacket)[]>(
+      //     'SELECT * FROM users WHERE id = ?',
+      //     [userId],
+      //   )
+      //   .catch(throwErrorWith('failed to get user'))
+
+      // if (!user) {
+      //   await conn.rollback()
+      //   return c.text('not found user that has the userid in session', 404)
+      // }
+
+      // const response = await fillUserResponse(
+      //   conn,
+      //   user,
+      //   c.get('runtime').fallbackUserIcon,
+      // ).catch(throwErrorWith('failed to fill user'))
+
+      // await conn.commit().catch(throwErrorWith('failed to commit'))
+
+      const response = c.get('session').get(defaultUserResponseKey)
+      return c.json(response)
+    } catch (error) {
+      // await conn.rollback()
+      return c.text(`Internal Server Error\n${error}`, 500)
+    } finally {
+      // await conn.rollback()
+      // conn.release()
     }
   },
 ]
@@ -204,6 +226,9 @@ export const registerHandler = async (
 
     await conn.commit().catch(throwErrorWith('failed to commit'))
 
+    const session = c.get('session')
+    session.set(defaultUserResponseKey, response)
+
     return c.json(response, 201)
   } catch (error) {
     await conn.rollback()
@@ -258,6 +283,18 @@ export const loginHandler = async (
     session.set(defaultUserIDKey, user.id)
     session.set(defaultUserNameKey, user.name)
     session.set(defaultSessionExpiresKey, sessionEndAt)
+
+    const response = await fillUserResponse(
+      conn,
+      {
+        id: user.id,
+        name: user.name,
+        display_name: user.display_name,
+        description: user.description,
+      },
+      c.get('runtime').fallbackUserIcon,
+    ).catch(throwErrorWith('failed to fill user'))
+    session.set(defaultUserResponseKey, response)
 
     // eslint-disable-next-line unicorn/no-null
     return c.body(null)

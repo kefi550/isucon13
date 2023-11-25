@@ -14,11 +14,18 @@ export interface UserResponse {
   icon_hash: string
 }
 
+export const fillUserResponseMap = new Map<number, UserResponse>()
+
 export const fillUserResponse = async (
   conn: PoolConnection,
   user: Omit<UserModel, 'password'>,
   getFallbackUserIcon: () => Promise<Readonly<ArrayBuffer>>,
 ) => {
+  let userResponse = fillUserResponseMap.get(user.id)
+  if (userResponse) {
+    return userResponse
+  }
+
   const [[theme]] = await conn.query<(ThemeModel & RowDataPacket)[]>(
     'SELECT * FROM themes WHERE user_id = ?',
     [user.id],
@@ -34,15 +41,19 @@ export const fillUserResponse = async (
     image = await getFallbackUserIcon()
   }
 
-  return {
-    id: user.id,
-    name: user.name,
-    display_name: user.display_name,
-    description: user.description,
-    theme: {
-      id: theme.id,
-      dark_mode: !!theme.dark_mode,
-    },
-    icon_hash: createHash('sha256').update(new Uint8Array(image)).digest('hex'),
-  } satisfies UserResponse
+  fillUserResponseMap.set(user.id,
+    {
+      id: user.id,
+      name: user.name,
+      display_name: user.display_name,
+      description: user.description,
+      theme: {
+        id: theme.id,
+        dark_mode: !!theme.dark_mode,
+      },
+      icon_hash: createHash('sha256').update(new Uint8Array(image)).digest('hex'),
+    } satisfies UserResponse
+  )
+
+  return fillUserResponseMap.get(user.id)
 }
