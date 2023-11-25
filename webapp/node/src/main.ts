@@ -1,3 +1,4 @@
+import cluster from 'node:cluster'
 import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -6,7 +7,6 @@ import { hash, compare } from 'bcrypt'
 import { createPool } from 'mysql2/promise'
 import { CookieStore, sessionMiddleware } from 'hono-sessions'
 import { Hono } from 'hono'
-import { logger } from 'hono/logger'
 import {
   ApplicationRuntime,
   HonoEnvironment,
@@ -47,6 +47,9 @@ import {
   getIconHandler,
   postIconHandler,
 } from './handlers/user-handler'
+
+
+const THREAD = 2;
 
 const runtime = {
   exec: async (cmd: string[]) =>
@@ -106,7 +109,6 @@ const applicationDeps = {
 } satisfies ApplicationRuntime
 
 const app = new Hono<HonoEnvironment>()
-app.use('*', logger())
 app.use(
   '*',
   sessionMiddleware({
@@ -206,6 +208,12 @@ app.get(
 // // 課金情報
 app.get('/api/payment', GetPaymentResult)
 
-serve({ ...app, port: 8080 }, (add) =>
-  console.log(`Listening on http://localhost:${add.port}`),
-)
+if (cluster.isPrimary) {
+  for (let i = 0; i < THREAD; i++) {
+    cluster.fork();
+  }
+} else {
+  serve({ ...app, port: 8080 }, (add) =>
+    console.log(`Listening on http://localhost:${add.port}`),
+  )
+}
