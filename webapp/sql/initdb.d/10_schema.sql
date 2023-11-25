@@ -129,3 +129,5 @@ create index reactions_user_id on `reactions` (`user_id`);
 create index reactions_livestream_id on `reactions` (`livestream_id`);
 create index reactions_emoji_name on `reactions` (`emoji_name` DESC);
 create index reactions_created_at on `reactions` (`created_at` DESC);
+create index livecomments_live_stream_id_created_at on livecomments(livestream_id, created_at desc);
+create index reactions_livestream_id_created_at on reactions(livestream_id,created_at desc);
