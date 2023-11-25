@@ -55,5 +55,5 @@ export const fillUserResponse = async (
     } satisfies UserResponse
   )
 
-  return fillUserResponseMap.get(user.id)
+  return fillUserResponseMap.get(user.id)!
 }
