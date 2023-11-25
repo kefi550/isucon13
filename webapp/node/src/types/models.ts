@@ -86,3 +86,12 @@ export interface ReactionsModel {
   emoji_name: string
   created_at: number
 }
+
+export interface UserStatisticsModel {
+  user_id: number
+  reaction_count: number
+  livecomment_count: number
+  tip_sum: number
+  viewer_sum: number
+  favorite_emoji: string | null
+}
