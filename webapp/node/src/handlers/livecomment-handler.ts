@@ -139,38 +139,29 @@ export const postLivecommentHandler = [
         return c.text('livestream not found', 404)
       }
 
-      // スパム判定
-      const [ngwords] = await conn
-        .query<
-          (Pick<NgWordsModel, 'id' | 'user_id' | 'livestream_id' | 'word'> &
-            RowDataPacket)[]
-        >(
-          'SELECT id, user_id, livestream_id, word FROM ng_words WHERE user_id = ? AND livestream_id = ?',
-          [livestream.user_id, livestreamId],
-        )
-        .catch(throwErrorWith('failed to get NG words'))
-
-      for (const ngword of ngwords) {
-        const [[{ 'COUNT(*)': hitSpam }]] = await conn
-          .query<({ 'COUNT(*)': number } & RowDataPacket)[]>(
+      // new スパム判定（n+1解消）
+      const [[{ 'COUNT(*)': hitSpam }]]  = await conn
+        .query<({ 'COUNT(*)': number } & RowDataPacket)[]>(
             `
-              SELECT COUNT(*)
-              FROM
-              (SELECT ? AS text) AS texts
-              INNER JOIN
-              (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-              ON texts.text LIKE patterns.pattern;
+            SELECT count(*)
+            FROM
+            (SELECT ? AS text) AS texts
+            inner join (
+                SELECT id, user_id, livestream_id, word
+                FROM ng_words
+                WHERE user_id = ? AND livestream_id = ?
+            ) as patterns
+            ON texts.text LIKE CONCAT('%', patterns.word, '%');
             `,
-            [body.comment, ngword.word],
-          )
-          .catch(throwErrorWith('failed to get hitspam'))
-
-        console.info(`[hitSpam=${hitSpam}] comment = ${body.comment}`)
-        if (hitSpam >= 1) {
-          await conn.rollback()
-          return c.text('このコメントがスパム判定されました', 400)
-        }
+            [body.comment, livestream.user_id, livestreamId],
+        )
+        .catch(throwErrorWith('failed to get hitspam'))
+      console.info(`[hitSpam=${hitSpam}] comment = ${body.comment}`)
+      if (hitSpam >= 1) {
+        await conn.rollback()
+        return c.text('このコメントがスパム判定されました', 400)
       }
+      
       const now = Date.now()
       const [{ insertId: livecommentId }] = await conn
         .query<ResultSetHeader>(
