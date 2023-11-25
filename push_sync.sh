@@ -6,6 +6,7 @@ LOCAL_PATH="."
 
 rsync -avr --exclude='node_modules' "${LOCAL_PATH}/webapp/node/" isu1:~/webapp/node/ 
 rsync -vr "${LOCAL_PATH}/webapp/sql/" isu1:~/webapp/sql/
+ssh isu1 sudo logrotate -f /etc/logrotate.conf
 ssh isu1 sudo systemctl restart isupipe-node.service
 #rsync -vr --exclude='node_modules' "${LOCAL_PATH}/isucari/webapp/nodejs/" isu2:~/isucari/webapp/nodejs/ 
 #ssh isu2 sudo systemctl restart isucari.nodejs.service
