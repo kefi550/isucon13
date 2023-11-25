@@ -8,7 +8,7 @@ import {
   defaultUserResponseKey
 } from '../contants'
 import { verifyUserSessionMiddleware } from '../middlewares/verify-user-session-middleare'
-import { fillUserResponse } from '../utils/fill-user-response'
+import { fillUserResponse, fillUserResponseMap } from '../utils/fill-user-response'
 import { throwErrorWith } from '../utils/throw-error-with'
 import { IconModel, UserModel } from '../types/models'
 
@@ -98,7 +98,8 @@ export const postIconHandler = [
         await conn.rollback()
         return c.text('not found user that has the userid in session', 404)
       }
-
+      
+      fillUserResponseMap.delete(userId)
       const response = await fillUserResponse(
         conn,
         user,
