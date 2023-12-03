@@ -11,6 +11,7 @@ import { verifyUserSessionMiddleware } from '../middlewares/verify-user-session-
 import { fillUserResponse, fillUserResponseMap } from '../utils/fill-user-response'
 import { throwErrorWith } from '../utils/throw-error-with'
 import { IconModel, UserModel } from '../types/models'
+import * as fs from "fs";
 
 // GET /api/user/:username/icon
 export const getIconHandler = [
@@ -74,18 +75,23 @@ export const postIconHandler = [
     await conn.beginTransaction()
 
     try {
-      await conn
-        .execute('DELETE FROM icons WHERE user_id = ?', [userId])
-        .catch(throwErrorWith('failed to delete old user icon'))
+      // await conn
+      //   .execute('DELETE FROM icons WHERE user_id = ?', [userId])
+      //   .catch(throwErrorWith('failed to delete old user icon'))
 
-      const [{ insertId: iconId }] = await conn
-        .query<ResultSetHeader>(
-          'INSERT INTO icons (user_id, image) VALUES (?, ?)',
-          [userId, Buffer.from(body.image, 'base64')],
-        )
-        .catch(throwErrorWith('failed to insert icon'))
+      console.log("### body!!!")
+      console.log(body.image)
+      const imagePath = `/home/isucon/webapp/img/${userId}.jpg`;
+      await fs.promises.writeFile(imagePath, body.image);
 
-      await conn.commit().catch(throwErrorWith('failed to commit'))
+      // const [{ insertId: iconId }] = await conn
+      //   .query<ResultSetHeader>(
+      //     'INSERT INTO icons (user_id, image) VALUES (?, ?)',
+      //     [userId, Buffer.from(body.image, 'base64')],
+      //   )
+      //   .catch(throwErrorWith('failed to insert icon'))
+
+      // await conn.commit().catch(throwErrorWith('failed to commit'))
 
       const [[user]] = await conn
         .query<(UserModel & RowDataPacket)[]>(
@@ -98,7 +104,7 @@ export const postIconHandler = [
         await conn.rollback()
         return c.text('not found user that has the userid in session', 404)
       }
-      
+
       fillUserResponseMap.delete(userId)
       const response = await fillUserResponse(
         conn,
@@ -108,7 +114,7 @@ export const postIconHandler = [
       const session = c.get('session')
       session.set(defaultUserResponseKey, response)
 
-      return c.json({ id: iconId }, 201)
+      return c.json({ id: userId }, 201)
     } catch (error) {
       await conn.rollback()
       return c.text(`Internal Server Error\n${error}`, 500)

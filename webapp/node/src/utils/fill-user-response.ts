@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { PoolConnection, RowDataPacket } from 'mysql2/promise'
-import { IconModel, ThemeModel, UserModel } from '../types/models'
+import { ThemeModel, UserModel } from '../types/models'
+import * as fs from "fs";
 
 export interface UserResponse {
   id: number
@@ -31,11 +32,13 @@ export const fillUserResponse = async (
     [user.id],
   )
 
-  const [[icon]] = await conn.query<
-    (Pick<IconModel, 'image'> & RowDataPacket)[]
-  >('SELECT image FROM icons WHERE user_id = ?', [user.id])
+  // const [[icon]] = await conn.query<
+  //   (Pick<IconModel, 'image'> & RowDataPacket)[]
+  // >('SELECT image FROM icons WHERE user_id = ?', [user.id])
 
-  let image = icon?.image
+  const imagePath = `/home/isucon/webapp/img/${user.id}.jpg`;
+  let image = toArrayBuffer(fs.readFileSync(imagePath, "binary")); 
+  // let image = icon?.image
 
   if (!image) {
     image = await getFallbackUserIcon()
@@ -56,4 +59,14 @@ export const fillUserResponse = async (
   )
 
   return fillUserResponseMap.get(user.id)!
+}
+
+// ArrayBufferにする
+function toArrayBuffer(buffer) {
+  var ab = new ArrayBuffer(buffer.length);
+  var view = new Uint8Array(ab);
+  for (var i = 0; i < buffer.length; ++i) {
+      view[i] = buffer[i];
+  }
+  return ab;
 }
